@@ -96,21 +96,30 @@ def handle_result(
     is_permanent = expires_at is None
     meets_member_bounds = config.min_members <= members <= config.max_members
     if not meets_member_bounds:
-        print(f"[BAD] - Member Amount Mismatch: {invite_code}")
+        print(
+            f"[BAD] - Member Amount Mismatch: {invite_code} · "
+            f"Got {members} members; expected between {config.min_members} and {config.max_members}"
+        )
         with open("bad.txt", "a", encoding="utf-8") as bad_file:
             bad_file.write(f"{invite_code}\n")
         counter.bad += 1
         return
 
     if boosts < config.min_boosts:
-        print(f"[BAD] - Not Enough Boosts: {invite_code}")
+        print(
+            f"[BAD] - Not Enough Boosts: {invite_code} · "
+            f"Got {boosts} boosts; expected at least {config.min_boosts}"
+        )
         with open("bad.txt", "a", encoding="utf-8") as bad_file:
             bad_file.write(f"{invite_code}\n")
         counter.bad += 1
         return
 
     if members_online < config.min_members_online:
-        print(f"[BAD] - Not Enough Members Online: {invite_code}")
+        print(
+            f"[BAD] - Not Enough Members Online: {invite_code} · "
+            f"Got {members_online} online; expected at least {config.min_members_online}"
+        )
         with open("bad.txt", "a", encoding="utf-8") as bad_file:
             bad_file.write(f"{invite_code}\n")
         counter.bad += 1
