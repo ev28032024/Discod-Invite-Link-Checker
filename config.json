@@ -8,6 +8,11 @@
         "threads": 5,
         "save_only_permanent_invites": true,
         "auto_mode": true,
-        "check_interval_minutes": 30
+        "check_interval_minutes": 30,
+        "telegram_bot_token": "YOUR_TELEGRAM_BOT_TOKEN",
+        "telegram_chat_id": 123456789,
+        "telegram_thread_id": 0,
+        "telegram_mentions": ["username1", "username2"],
+        "project_name": "Project Name"
     }
 ]
