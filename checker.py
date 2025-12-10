@@ -1,4 +1,5 @@
 import concurrent.futures
+import csv
 import json
 import random
 import re
@@ -21,6 +22,7 @@ class Config:
     save_only_permanent_invites: bool
     auto_mode: bool
     check_interval_minutes: float
+    google_sheet_csv_url: Optional[str]
     telegram_bot_token: Optional[str]
     telegram_chat_id: Optional[int]
     telegram_thread_id: Optional[int]
@@ -40,6 +42,7 @@ class Config:
             save_only_permanent_invites=data.get("save_only_permanent_invites", False),
             auto_mode=data.get("auto_mode", False),
             check_interval_minutes=data.get("check_interval_minutes", 60),
+            google_sheet_csv_url=data.get("google_sheet_csv_url"),
             telegram_bot_token=data.get("telegram_bot_token"),
             telegram_chat_id=data.get("telegram_chat_id"),
             telegram_thread_id=data.get("telegram_thread_id"),
@@ -120,22 +123,58 @@ def load_proxies():
         print(f"Ignoring {p_dupes_count} duplicate proxies...")
 
 
+def fetch_invites_from_google_sheet() -> list[str]:
+    if not config.google_sheet_csv_url:
+        return []
+
+    print("Loading invites from Google Sheet...")
+
+    try:
+        response = requests.get(config.google_sheet_csv_url, timeout=10)
+        response.raise_for_status()
+    except Exception as exc:  # noqa: BLE001 - broad to log failure reasons for end users
+        print(f"[FAILED] - Could not load invites from Google Sheet: {exc}")
+        return []
+
+    sheet_invites: list[str] = []
+    csv_reader = csv.reader(response.text.splitlines())
+    for row in csv_reader:
+        for cell in row:
+            invite_code = normalize_invite(cell)
+            if invite_code:
+                sheet_invites.append(invite_code)
+
+    print(f"Successfully loaded {len(sheet_invites)} invites from Google Sheet!")
+    return sheet_invites
+
+
 def load_invites() -> list[str]:
+    deduped_invites: list[str] = []
+    dupes_count = 0
+
+    def add_invite(invite_value: str):
+        nonlocal dupes_count
+
+        invite_code = normalize_invite(invite_value)
+        if not invite_code:
+            return
+        if invite_code not in deduped_invites:
+            deduped_invites.append(invite_code)
+        else:
+            dupes_count += 1
+
+    sheet_invites = fetch_invites_from_google_sheet()
+    for invite in sheet_invites:
+        add_invite(invite)
+
     with open("invites.txt", "r", encoding="utf-8", errors="ignore") as invites_file:
         invites = invites_file.readlines()
         print(f"Successfully loaded {sum(1 for invite in invites)} invites from invites.txt!")
-        deduped_invites: list[str] = []
-        dupes_count = 0
         for invite in invites:
-            invite_code = normalize_invite(invite)
-            if not invite_code:
-                continue
-            if invite_code not in deduped_invites:
-                deduped_invites.append(invite_code)
-            else:
-                dupes_count += 1
-        print(f"Ignoring {dupes_count} duplicate invites...")
-        return deduped_invites
+            add_invite(invite)
+
+    print(f"Ignoring {dupes_count} duplicate invites...")
+    return deduped_invites
 
 
 def handle_result(
