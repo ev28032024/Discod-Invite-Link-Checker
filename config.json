@@ -6,6 +6,8 @@
         "min_boosts": 2,
         "use_proxies": true,
         "threads": 5,
-        "save_only_permanent_invites": true
+        "save_only_permanent_invites": true,
+        "auto_mode": true,
+        "check_interval_minutes": 30
     }
 ]
