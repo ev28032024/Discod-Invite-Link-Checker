@@ -220,12 +220,10 @@ def send_telegram_notification(
         f"@{username.lstrip('@')}" for username in config.telegram_mentions if username.strip()
     )
     invite_link = f"https://discord.gg/{invite_code}"
-    project_name = guild_name
     permanent_text = "Да" if is_permanent else "Нет"
 
     message_body = (
         f"<b>🎉 Найдено рабочее приглашение</b>\n"
-        f"<b>Проект:</b> {project_name}\n"
         f"<b>Сервер:</b> {guild_name}\n"
         f"<b>Ссылка:</b> <a href=\"{invite_link}\">{invite_link}</a>\n"
         f"<b>Онлайн:</b> {members_online}/{members}\n"
