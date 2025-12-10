@@ -21,6 +21,11 @@ class Config:
     save_only_permanent_invites: bool
     auto_mode: bool
     check_interval_minutes: float
+    telegram_bot_token: Optional[str]
+    telegram_chat_id: Optional[int]
+    telegram_thread_id: Optional[int]
+    telegram_mentions: list[str]
+    project_name: Optional[str]
 
     @classmethod
     def load(cls) -> "Config":
@@ -36,6 +41,11 @@ class Config:
             save_only_permanent_invites=data.get("save_only_permanent_invites", False),
             auto_mode=data.get("auto_mode", False),
             check_interval_minutes=data.get("check_interval_minutes", 60),
+            telegram_bot_token=data.get("telegram_bot_token"),
+            telegram_chat_id=data.get("telegram_chat_id"),
+            telegram_thread_id=data.get("telegram_thread_id"),
+            telegram_mentions=data.get("telegram_mentions", []),
+            project_name=data.get("project_name"),
         )
 
 
@@ -187,6 +197,63 @@ def handle_result(
     with open("valid_ids.txt", "a", encoding="utf-8") as valid_ids_file:
         valid_ids_file.write(f"{guild_id}\n")
     counter.hit += 1
+    send_telegram_notification(
+        invite_code=invite_code,
+        guild_name=guild_name,
+        members_online=members_online,
+        members=members,
+        boosts=boosts,
+        is_permanent=is_permanent,
+    )
+
+
+def send_telegram_notification(
+    invite_code: str,
+    guild_name: str,
+    members_online: int,
+    members: int,
+    boosts: int,
+    is_permanent: bool,
+):
+    if not config.telegram_bot_token or not config.telegram_chat_id:
+        return
+
+    mentions = " ".join(
+        f"@{username.lstrip('@')}" for username in config.telegram_mentions if username.strip()
+    )
+    invite_link = f"https://discord.gg/{invite_code}"
+    project_name = config.project_name or "Не указан"
+    permanent_text = "Да" if is_permanent else "Нет"
+
+    message_body = (
+        f"<b>🎉 Найдено рабочее приглашение</b>\n"
+        f"<b>Проект:</b> {project_name}\n"
+        f"<b>Сервер:</b> {guild_name}\n"
+        f"<b>Ссылка:</b> <a href=\"{invite_link}\">{invite_link}</a>\n"
+        f"<b>Онлайн:</b> {members_online}/{members}\n"
+        f"<b>Бусты:</b> {boosts}\n"
+        f"<b>Постоянное приглашение:</b> {permanent_text}"
+    )
+
+    payload = {
+        "chat_id": config.telegram_chat_id,
+        "text": f"{mentions}\n{message_body}".strip(),
+        "parse_mode": "HTML",
+        "disable_web_page_preview": True,
+    }
+
+    if config.telegram_thread_id:
+        payload["message_thread_id"] = config.telegram_thread_id
+
+    try:
+        response = requests.post(
+            url=f"https://api.telegram.org/bot{config.telegram_bot_token}/sendMessage",
+            json=payload,
+            timeout=10,
+        )
+        response.raise_for_status()
+    except Exception as exc:  # noqa: BLE001 - broad to log failure reasons for end users
+        print(f"[FAILED] - Telegram notification not sent: {exc}")
 
 
 def check_invite(invite_code: str):
