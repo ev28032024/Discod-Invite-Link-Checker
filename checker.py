@@ -129,11 +129,36 @@ def fetch_invites_from_google_sheet() -> list[str]:
 
     print("Loading invites from Google Sheet...")
 
+    def build_export_url(raw_url: str) -> str:
+        """Ensure the provided Google Sheet URL returns CSV data."""
+
+        if "export?format=csv" in raw_url:
+            return raw_url
+
+        match = re.search(r"docs\.google\.com/spreadsheets/d/([^/]+)", raw_url)
+        if not match:
+            return raw_url
+
+        sheet_id = match.group(1)
+        gid_match = re.search(r"gid=([0-9]+)", raw_url)
+        gid = gid_match.group(1) if gid_match else "0"
+
+        return f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid={gid}"
+
+    sheet_url = build_export_url(config.google_sheet_csv_url)
+    if sheet_url != config.google_sheet_csv_url:
+        print("[INFO] - Normalized Google Sheet URL to CSV export endpoint")
+
     try:
-        response = requests.get(config.google_sheet_csv_url, timeout=10)
+        response = requests.get(sheet_url, timeout=10)
         response.raise_for_status()
     except Exception as exc:  # noqa: BLE001 - broad to log failure reasons for end users
         print(f"[FAILED] - Could not load invites from Google Sheet: {exc}")
+        return []
+
+    content_type = response.headers.get("Content-Type", "").lower()
+    if "text/html" in content_type:
+        print("[FAILED] - Google Sheet URL did not return CSV data. Please use the CSV export link.")
         return []
 
     sheet_invites: list[str] = []
