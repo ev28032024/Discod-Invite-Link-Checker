@@ -2,7 +2,9 @@ import concurrent.futures
 import json
 import random
 import re
+import time
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Optional
 
 import requests
@@ -17,19 +19,23 @@ class Config:
     use_proxies: bool
     threads: int
     save_only_permanent_invites: bool
+    auto_mode: bool
+    check_interval_minutes: float
 
     @classmethod
     def load(cls) -> "Config":
         with open("config.json", "r", encoding="utf-8") as cfg:
             data = json.load(cfg)[0]
         return cls(
-            min_members=data["min_members"],
-            max_members=data["max_members"],
-            min_members_online=data["min_members_online"],
-            min_boosts=data["min_boosts"],
-            use_proxies=data["use_proxies"],
-            threads=data["threads"],
-            save_only_permanent_invites=data["save_only_permanent_invites"],
+            min_members=data.get("min_members", 0),
+            max_members=data.get("max_members", 0),
+            min_members_online=data.get("min_members_online", 0),
+            min_boosts=data.get("min_boosts", 0),
+            use_proxies=data.get("use_proxies", False),
+            threads=data.get("threads", 1),
+            save_only_permanent_invites=data.get("save_only_permanent_invites", False),
+            auto_mode=data.get("auto_mode", False),
+            check_interval_minutes=data.get("check_interval_minutes", 60),
         )
 
 
@@ -82,6 +88,46 @@ def send_request(invite_code: str) -> Optional[dict]:
             failed_file.write(f"{invite_code}\n")
         counter.failed += 1
         return None
+
+
+def reset_state():
+    counter.hit = 0
+    counter.bad = 0
+    counter.failed = 0
+    checked_guild_ids.clear()
+    deduped_proxies.clear()
+
+
+def load_proxies():
+    with open("proxies.txt", "r", encoding="utf-8", errors="ignore") as proxies_file:
+        proxies = proxies_file.readlines()
+        print(f"Successfully loaded {sum(1 for proxie in proxies)} proxies from proxies.txt!")
+        p_dupes_count = 0
+        for proxie in proxies:
+            proxie = proxie.strip()
+            if proxie and proxie not in deduped_proxies:
+                deduped_proxies.append(proxie)
+            elif proxie:
+                p_dupes_count += 1
+        print(f"Ignoring {p_dupes_count} duplicate proxies...")
+
+
+def load_invites() -> list[str]:
+    with open("invites.txt", "r", encoding="utf-8", errors="ignore") as invites_file:
+        invites = invites_file.readlines()
+        print(f"Successfully loaded {sum(1 for invite in invites)} invites from invites.txt!")
+        deduped_invites: list[str] = []
+        dupes_count = 0
+        for invite in invites:
+            invite_code = normalize_invite(invite)
+            if not invite_code:
+                continue
+            if invite_code not in deduped_invites:
+                deduped_invites.append(invite_code)
+            else:
+                dupes_count += 1
+        print(f"Ignoring {dupes_count} duplicate invites...")
+        return deduped_invites
 
 
 def handle_result(
@@ -183,6 +229,19 @@ def check_invite(invite_code: str):
         counter.failed += 1
 
 
+def run_checker_once():
+    reset_state()
+    load_proxies()
+    deduped_invites = load_invites()
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=config.threads) as executor:
+        executor.map(check_invite, deduped_invites)
+
+    print(
+        f"Checking Process Finished. Results: \nHits: {counter.hit}, Bad: {counter.bad}, Failed: {counter.failed}"
+    )
+
+
 def main():
     title = """
  ██▓ ███▄    █ ██▒   █▓ ██▓▄▄▄█████▓▓█████     ▄████▄   ██░ ██ ▓█████  ▄████▄   ██ ▄█▀▓█████  ██▀███
@@ -197,9 +256,9 @@ def main():
                    ░                          ░                       ░
 
 
-                   -> Coded by @tec9_xd#0 / @tec9_eu
+                    -> Coded by @tec9_xd#0 / @tec9_eu
 
-                                                        Version: Release 1.0
+                                                    Version: Release 1.0
 
 
 
@@ -208,43 +267,31 @@ def main():
 
     print(title)
 
-    input(
-        "Please put your invite CODES or LINKS into invites.txt. "
-        "Links such as https://discord.gg/example123 or https://discord.com/invite/example123 "
-        "will be automatically parsed.\n\nPress ENTER to launch the checker."
+    if not config.auto_mode:
+        input(
+            "Please put your invite CODES or LINKS into invites.txt. "
+            "Links such as https://discord.gg/example123 or https://discord.com/invite/example123 "
+            "will be automatically parsed.\n\nPress ENTER to launch the checker."
+        )
+        run_checker_once()
+        return
+
+    print(
+        "Automatic mode enabled. The checker will run continuously. Press CTRL+C to stop the process.\n"
+        f"Current interval: every {config.check_interval_minutes} minute(s)."
     )
 
-    with open("proxies.txt", "r", encoding="utf-8", errors="ignore") as proxies_file:
-        proxies = proxies_file.readlines()
-        print(f"Successfully loaded {sum(1 for proxie in proxies)} proxies from proxies.txt!")
-        p_dupes_count = 0
-        for proxie in proxies:
-            proxie = proxie.strip()
-            if proxie and proxie not in deduped_proxies:
-                deduped_proxies.append(proxie)
-            elif proxie:
-                p_dupes_count += 1
-        print(f"Ignoring {p_dupes_count} duplicate proxies...")
-
-    with open("invites.txt", "r", encoding="utf-8", errors="ignore") as invites_file:
-        invites = invites_file.readlines()
-        print(f"Successfully loaded {sum(1 for invite in invites)} invites from invites.txt!")
-        deduped_invites = []
-        dupes_count = 0
-        for invite in invites:
-            invite_code = normalize_invite(invite)
-            if not invite_code:
-                continue
-            if invite_code not in deduped_invites:
-                deduped_invites.append(invite_code)
-            else:
-                dupes_count += 1
-        print(f"Ignoring {dupes_count} duplicate invites...")
-
-        with concurrent.futures.ThreadPoolExecutor(max_workers=config.threads) as executor:
-            executor.map(check_invite, deduped_invites)
-
-        print(f"Checking Process Finished. Results: \nHits: {counter.hit}, Bad: {counter.bad}, Failed: {counter.failed}")
+    try:
+        while True:
+            print(f"\n[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Starting invite check cycle...")
+            run_checker_once()
+            sleep_seconds = max(config.check_interval_minutes * 60, 1)
+            print(
+                f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Waiting {config.check_interval_minutes} minute(s) before the next run..."
+            )
+            time.sleep(sleep_seconds)
+    except KeyboardInterrupt:
+        print("\n[INFO] - Automatic checking stopped by user.")
 
 
 if __name__ == "__main__":
