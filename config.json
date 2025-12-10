@@ -1,9 +1,9 @@
 [
     {
-        "min_members": 140,
-        "max_members": 100000,
-        "min_members_online": 40,
-        "min_boosts": 2,
+        "min_members": 10,
+        "max_members": 1000000,
+        "min_members_online": 10,
+        "min_boosts": 1,
         "use_proxies": true,
         "threads": 5,
         "save_only_permanent_invites": true,
