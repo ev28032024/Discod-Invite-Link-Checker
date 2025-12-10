@@ -25,7 +25,6 @@ class Config:
     telegram_chat_id: Optional[int]
     telegram_thread_id: Optional[int]
     telegram_mentions: list[str]
-    project_name: Optional[str]
 
     @classmethod
     def load(cls) -> "Config":
@@ -45,7 +44,6 @@ class Config:
             telegram_chat_id=data.get("telegram_chat_id"),
             telegram_thread_id=data.get("telegram_thread_id"),
             telegram_mentions=data.get("telegram_mentions", []),
-            project_name=data.get("project_name"),
         )
 
 
@@ -214,7 +212,7 @@ def send_telegram_notification(
     members: int,
     boosts: int,
     is_permanent: bool,
-):
+    ):
     if not config.telegram_bot_token or not config.telegram_chat_id:
         return
 
@@ -222,7 +220,7 @@ def send_telegram_notification(
         f"@{username.lstrip('@')}" for username in config.telegram_mentions if username.strip()
     )
     invite_link = f"https://discord.gg/{invite_code}"
-    project_name = config.project_name or "Не указан"
+    project_name = guild_name
     permanent_text = "Да" if is_permanent else "Нет"
 
     message_body = (
