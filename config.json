@@ -13,6 +13,6 @@
         "telegram_bot_token": "YOUR_TELEGRAM_BOT_TOKEN",
         "telegram_chat_id": 123456789,
         "telegram_thread_id": 0,
-        "telegram_mentions": ["username1", "username2"]
+        "telegram_mentions": ["@username1", "@username2"]
     }
 ]
