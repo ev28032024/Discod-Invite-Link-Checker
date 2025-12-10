@@ -9,6 +9,7 @@
         "save_only_permanent_invites": true,
         "auto_mode": true,
         "check_interval_minutes": 30,
+        "google_sheet_csv_url": "https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/export?format=csv&gid=0",
         "telegram_bot_token": "YOUR_TELEGRAM_BOT_TOKEN",
         "telegram_chat_id": 123456789,
         "telegram_thread_id": 0,
