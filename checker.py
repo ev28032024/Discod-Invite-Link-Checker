@@ -138,11 +138,16 @@ def fetch_invites_from_google_sheet() -> list[str]:
 
     sheet_invites: list[str] = []
     csv_reader = csv.reader(response.text.splitlines())
+
+    # Google Sheets exports can contain extra columns of irrelevant data.
+    # To avoid picking up noise, we only read values from the first column (A).
     for row in csv_reader:
-        for cell in row:
-            invite_code = normalize_invite(cell)
-            if invite_code:
-                sheet_invites.append(invite_code)
+        if not row:
+            continue
+
+        invite_code = normalize_invite(row[0])
+        if invite_code:
+            sheet_invites.append(invite_code)
 
     print(f"Successfully loaded {len(sheet_invites)} invites from Google Sheet!")
     return sheet_invites
