@@ -1,0 +1,11 @@
+[
+    {
+        "min_members": 140,
+        "max_members": 100000,
+        "min_members_online": 40,
+        "min_boosts": 2,
+        "use_proxies": true,
+        "threads": 5,
+        "save_only_permanent_invites": true
+    }
+]
